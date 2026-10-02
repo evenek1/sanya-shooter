@@ -62,3 +62,8 @@ shooter
 # Nix
 result
 result-*
+
+# core dumps / runtime junk
+core
+core.*
+engine.log

@@ -1,5 +1,5 @@
 {
-  description = "Shooter — FPS на движке 3dzavr (SFML). Сборка для Linux / NixOS";
+  description = "Саня Шутер — сборка Shooter (3dzavr / SFML) под Linux и NixOS";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -13,10 +13,6 @@
         "aarch64-linux"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-
-      # Ревизия движка 3dzavr, зафиксированная в сабмодуле этого репозитория
-      # (ветка sfml_version; в master движок переписан на SDL2 и с этой игрой несовместим).
-      engineRev = "3af8e6c6fb8a685647ed97054392c716423e719d";
     in
     {
       packages = forAllSystems (
@@ -24,16 +20,12 @@
         let
           lib = pkgs.lib;
 
-          engine = pkgs.fetchgit {
-            url = "https://github.com/vectozavr/3dzavr";
-            rev = engineRev;
-            hash = "sha256-x5ypie0ZMvn47xYaMNQ7f1msBREgEyeEvHI8UbC3LKU=";
-          };
-
           shooter = pkgs.stdenv.mkDerivation (finalAttrs: {
             pname = "shooter";
             version = "0.1.0-unstable";
 
+            # Исходники игры + движок 3dzavr лежат вместе в этом репозитории
+            # (движок в 3dzavr/, ветка sfml_version, ревизия 3af8e6c).
             src = ./.;
 
             nativeBuildInputs = [ pkgs.cmake ];
@@ -51,13 +43,12 @@
               pkgs.freeglut
             ];
 
-            # CMakeLists.txt игры ожидает движок в подкаталоге 3dzavr/.
-            # Сабмодуль в флейк не попадает, поэтому подкладываем движок вручную.
+            # sanity-check: CMakeLists.txt делает add_subdirectory(3dzavr/engine)
             preConfigure = ''
-              rm -rf 3dzavr
-              cp -r ${engine} 3dzavr
-              chmod -R u+w 3dzavr
-              test -d 3dzavr/engine || { echo "3dzavr/engine not found"; exit 1; }
+              test -f 3dzavr/engine/CMakeLists.txt || {
+                echo "3dzavr/engine/CMakeLists.txt not found — движок не вложен в репозиторий"
+                exit 1
+              }
             '';
 
             cmakeFlags = [
@@ -79,8 +70,9 @@
 
               cp -r textures sound obj $out/libexec/shooter/
 
+              # шрифты движка грузятся по пути 3dzavr/engine/fonts/*.ttf
               mkdir -p $out/libexec/shooter/3dzavr/engine/fonts
-              cp ${engine}/engine/fonts/*.ttf $out/libexec/shooter/3dzavr/engine/fonts/
+              cp 3dzavr/engine/fonts/*.ttf $out/libexec/shooter/3dzavr/engine/fonts/
 
               install -m644 connect.txt $out/libexec/shooter/connect.txt
               install -m644 server.txt $out/libexec/shooter/server.txt
@@ -92,8 +84,6 @@
 
               runHook postInstall
             '';
-
-            passthru.engine = engine;
 
             meta = {
               description = "Shooter — first person shooter на движке 3dzavr (SFML)";
