@@ -59,3 +59,6 @@ CMakeUserPresets.json
 # Project exclude paths
 engine.log
 shooter
+# Nix
+result
+result-*
